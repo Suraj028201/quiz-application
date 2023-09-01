@@ -3,20 +3,29 @@ import axios from 'axios';
 import { QUIZ_URL } from '../environment/environment';
 import '../styles/dashboard-page.css';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { questionsListAction, userAnswersAction, userScoreAction } from '../store/actions';
 
 const DashboardPage = () => {
 
+    const  questions  = useSelector((state) => state.allQuestions);
     const [timeRemaining, setTimeRemaining] = useState(30 * 60); // 30 minutes in seconds
-    const questionCount = 15; // Number of questions
-    const [currentQuestion, setCurrentQuestion] = useState(1);
+    const [currentQuestionNumber, setCurrentQuestionNumber] = useState(1);
+    const [answeredQuestions, setAnsweredQuestions] = useState(Array(questions?.length).fill(false));
+    const [visitedQuestions, setVisitedQuestions] = useState(Array(questions?.length).fill(false));
+    const [userAnswers, setUserAnswers] = useState(Array(questions?.length).fill(''));
+    const [selectedOption, setSelectedOption] = useState(null);
     const navigate = useNavigate();
+    const dispatch = useDispatch();
 
-    const fetchQuestions = () => {
-      axios.get(QUIZ_URL).then((response) => {
-          console.log(response.data.results);
-      }).catch((error) => {
+
+    const fetchQuestions = async () => {
+      try {
+        const response = await axios.get(QUIZ_URL);
+        dispatch(questionsListAction(response.data.results));
+      } catch (error) {
         console.log('Error in fetching question: ', error);
-      })
+      }
     }
 
     useEffect(() => {
@@ -24,7 +33,7 @@ const DashboardPage = () => {
       const timer = setInterval(() => {
         setTimeRemaining((prevTime) => prevTime - 1);
       }, 1000);
-  
+      
       return () => {
         clearInterval(timer);
       };
@@ -37,21 +46,22 @@ const DashboardPage = () => {
     }, [timeRemaining]);
 
     const handleQuestionClick = (questionNumber) => {
-      setCurrentQuestion(questionNumber);
-    };
-
-    const handleAssignmentSubmit = () => {
-      navigate('/report');
+      setSelectedOption(userAnswers[questionNumber - 1]);
+      const updatedVisitedQuestions = [...visitedQuestions];
+      updatedVisitedQuestions[currentQuestionNumber - 1] = true;
+      setVisitedQuestions(updatedVisitedQuestions);
+      setCurrentQuestionNumber(questionNumber);
     };
 
     const renderQuestionButtons = () => {
       const buttons = [];
-      for (let i = 1; i <= questionCount; i++) {
+      for (let i = 1; i <= questions?.length; i++) {
         buttons.push(
           <button
             key={i}
-            className={`question-button ${currentQuestion === i ? 'active' : ''}`}
-            onClick={() => handleQuestionClick(i)}>
+            className={`question-button ${currentQuestionNumber === i ? 'active' : ''} ${answeredQuestions[i - 1] ? 'answered' : 'jj'} ${  !answeredQuestions[i - 1] && visitedQuestions[i - 1] ? 'visited' : ''}`}
+            onClick={() => handleQuestionClick(i)}
+            >
             {i}
           </button>
         );
@@ -59,17 +69,67 @@ const DashboardPage = () => {
       return buttons;
     };
 
+    const handleOptionSelect = (option) => {
+      const updatedAnswers = [...answeredQuestions];
+      updatedAnswers[currentQuestionNumber - 1] = true;
+      setAnsweredQuestions(updatedAnswers);
+      setSelectedOption(option);
+      const newUserAnswers = [...userAnswers];
+      newUserAnswers[currentQuestionNumber - 1] = option;
+      setUserAnswers(newUserAnswers);
+    };
+
+    const handleAssignmentSubmit = () => {
+      let score = 0;
+      questions?.map((question, index) => {
+        if(question.correct_answer === userAnswers[index]){
+          score++;
+        }
+      })
+      dispatch(userScoreAction(score));
+      dispatch(userAnswersAction(userAnswers));
+      navigate('/report');
+    };
+
+
     return (
       <div className="dashboard-container">
         <div className="question-column">
           {renderQuestionButtons()}
         </div>
         <div className="question-content">
-          <h1>Question {currentQuestion}</h1>
-          <p>This is the content of question {currentQuestion}.</p>
-          {timeRemaining > 0 && (
-            <p>Time remaining: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}</p>
-          )}
+          <div className="timer-container">
+            {timeRemaining > 0 && (
+              <p className='timer'>Time remaining: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}</p>
+            )}
+          </div>
+          <div className="card">
+            <h1>Question {currentQuestionNumber} :</h1>
+            <h2 className="question">{questions && questions[currentQuestionNumber-1]?.question}{currentQuestionNumber}</h2>
+            <div className="options">
+            {questions && questions[currentQuestionNumber-1]?.incorrect_answers.map((option, index) => (
+              <label key={index} className="option">
+              <input
+                type="radio"
+                name="answer"
+                value={option}
+                checked={selectedOption === option}
+                onChange={() => handleOptionSelect(option)}/>
+                  {option}
+              </label>
+            ))}
+            <label className="option">
+              <input
+                type="radio"
+                name="answer"
+                value={questions[currentQuestionNumber-1]?.correct_answer}
+                checked={selectedOption === questions[currentQuestionNumber-1]?.correct_answer}
+                onChange={() => handleOptionSelect(questions[currentQuestionNumber-1]?.correct_answer)}/>
+                  {questions[currentQuestionNumber-1]?.correct_answer}
+              </label>
+            </div>
+            <button className="submit-button" onClick={() => {handleQuestionClick(currentQuestionNumber+1)}}>Next</button>
+          </div>
           <button className="submit-button" onClick={handleAssignmentSubmit}>Submit Assignment</button>
         </div>
       </div>

@@ -20,7 +20,7 @@ h1 {
   color: #333;
 }
 
-input {
+.email-input {
   width: 80%;
   padding: 10px;
   margin-bottom: 10px;
@@ -55,6 +55,7 @@ button:hover {
 
   .login-container {
     flex-direction: column;
+    justify-content: flex-start;
   }
 
   .login-container > div:first-child {
