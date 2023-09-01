@@ -105,7 +105,7 @@ const DashboardPage = () => {
           </div>
           <div className="card">
             <h1>Question {currentQuestionNumber} :</h1>
-            <h2 className="question">{questions && questions[currentQuestionNumber-1]?.question}{currentQuestionNumber}</h2>
+            <h2 className="question">{questions && questions[currentQuestionNumber-1]?.question}</h2>
             <div className="options">
             {questions && questions[currentQuestionNumber-1]?.incorrect_answers.map((option, index) => (
               <label key={index} className="option">
